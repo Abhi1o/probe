@@ -1,0 +1,109 @@
+# Prometheus Configuration for Probe Platform
+# Version: 1.0.0
+# Last Updated: May 1, 2026
+
+global:
+  scrape_interval: 15s # Scrape targets every 15 seconds
+  evaluation_interval: 15s # Evaluate rules every 15 seconds
+  scrape_timeout: 10s # Timeout after 10 seconds
+  
+  # Attach these labels to any time series or alerts
+  external_labels:
+    monitor: 'probe-platform'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - 'alertmanager:9093'
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+  # - "rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Probe Backend API
+  - job_name: 'probe-backend'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['backend:3000']
+        labels:
+          service: 'probe-backend'
+          app: 'probe'
+          tier: 'backend'
+    
+    # Relabel configurations
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'probe-backend'
+
+  # PostgreSQL/TimescaleDB (if postgres_exporter is configured)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres'
+          app: 'probe'
+          tier: 'database'
+
+  # Redis (if redis_exporter is configured)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+          app: 'probe'
+          tier: 'cache'
+
+  # Node Exporter (system metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          app: 'probe'
+          tier: 'infrastructure'
+
+  # Docker containers (if cAdvisor is configured)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'cadvisor'
+          app: 'probe'
+          tier: 'infrastructure'
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention:
+      time: 30d # Keep data for 30 days
+      size: 10GB # Maximum storage size
+
+# Remote write configuration (optional - for long-term storage)
+# remote_write:
+#   - url: "http://remote-storage:9009/api/v1/push"
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 5
+#       min_shards: 1
+#       max_samples_per_send: 1000
+#       batch_send_deadline: 5s
+
+# Remote read configuration (optional)
+# remote_read:
+#   - url: "http://remote-storage:9009/api/v1/read"

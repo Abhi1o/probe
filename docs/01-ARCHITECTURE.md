@@ -1,0 +1,627 @@
+# Probe Platform - Detailed Architecture
+
+## 🏗️ System Architecture
+
+### High-Level Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          CLIENT TIER                                 │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐ │
+│  │   Web Dashboard  │  │   Mobile App     │  │   CLI Tool       │ │
+│  │   (Next.js 14)   │  │   (React Native) │  │   (Node.js)      │ │
+│  │                  │  │   [Future]       │  │                  │ │
+│  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘ │
+└───────────┼────────────────────┼────────────────────┼──────────────┘
+            │                    │                    │
+            └────────────────────┼────────────────────┘
+                                 │ HTTPS/WSS
+┌────────────────────────────────▼─────────────────────────────────────┐
+│                          API GATEWAY TIER                             │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │                    NestJS API Server                            │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐ │ │
+│  │  │  REST API    │  │  GraphQL     │  │  WebSocket Server    │ │ │
+│  │  │  Endpoints   │  │  Resolver    │  │  (Socket.io)         │ │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────────────┘ │ │
+│  │  ┌──────────────────────────────────────────────────────────┐ │ │
+│  │  │  Middleware Layer                                         │ │ │
+│  │  │  - Authentication (JWT)                                   │ │ │
+│  │  │  - Authorization (RBAC)                                   │ │ │
+│  │  │  - Rate Limiting                                          │ │ │
+│  │  │  - Request Validation                                     │ │ │
+│  │  │  - Error Handling                                         │ │ │
+│  │  │  - Logging & Monitoring                                   │ │ │
+│  │  └──────────────────────────────────────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────┬─────────────────────────────────────┘
+                                 │
+          ┌──────────────────────┼──────────────────────┐
+          │                      │                      │
+┌─────────▼──────────┐  ┌───────▼────────┐  ┌─────────▼──────────────┐
+│  SERVICE LAYER     │  │  DATA LAYER    │  │  BLOCKCHAIN LAYER      │
+│                    │  │                │  │                        │
+│ ┌────────────────┐ │  │ ┌────────────┐ │  │ ┌────────────────────┐│
+│ │ Monitor        │ │  │ │ PostgreSQL │ │  │ │ Solana RPC Nodes   ││
+│ │ Service        │ │  │ │ (Primary)  │ │  │ │ - Mainnet          ││
+│ └────────────────┘ │  │ └────────────┘ │  │ │ - Devnet           ││
+│                    │  │                │  │ │ - Testnet          ││
+│ ┌────────────────┐ │  │ ┌────────────┐ │  │ └────────────────────┘│
+│ │ Indexer        │ │  │ │TimescaleDB │ │  │                        │
+│ │ Service        │ │  │ │(Time-Series│ │  │ ┌────────────────────┐│
+│ └────────────────┘ │  │ │ Extension) │ │  │ │ Transaction Parser ││
+│                    │  │ └────────────┘ │  │ │ - Instruction      ││
+│ ┌────────────────┐ │  │                │  │ │   Decoder          ││
+│ │ Analytics      │ │  │ ┌────────────┐ │  │ │ - Log Parser       ││
+│ │ Service        │ │  │ │   Redis    │ │  │ │ - Account Monitor  ││
+│ └────────────────┘ │  │ │  (Cache)   │ │  │ └────────────────────┘│
+│                    │  │ └────────────┘ │  │                        │
+│ ┌────────────────┐ │  │                │  │ ┌────────────────────┐│
+│ │ Alert          │ │  │ ┌────────────┐ │  │ │ WebSocket Stream   ││
+│ │ Service        │ │  │ │   Bull     │ │  │ │ - Account Changes  ││
+│ └────────────────┘ │  │ │  (Queue)   │ │  │ │ - Transaction      ││
+│                    │  │ └────────────┘ │  │ │   Updates          ││
+│ ┌────────────────┐ │  │                │  │ └────────────────────┘│
+│ │ Notification   │ │  │ ┌────────────┐ │  │                        │
+│ │ Service        │ │  │ │Elasticsearch│ │  │ ┌────────────────────┐│
+│ └────────────────┘ │  │ │ (Optional) │ │  │ │ Program Analyzer   ││
+│                    │  │ └────────────┘ │  │ │ - IDL Parser       ││
+│ ┌────────────────┐ │  │                │  │ │ - Type Inference   ││
+│ │ User           │ │  └────────────────┘  │ └────────────────────┘│
+│ │ Service        │ │                      │                        │
+│ └────────────────┘ │                      └────────────────────────┘
+│                    │
+│ ┌────────────────┐ │
+│ │ Program        │ │
+│ │ Service        │ │
+│ └────────────────┘ │
+└────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                     EXTERNAL INTEGRATIONS                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │   Email      │  │    Slack     │  │      Discord             │ │
+│  │   (SMTP)     │  │   Webhook    │  │      Webhook             │ │
+│  └──────────────┘  └──────────────┘  └──────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 🔄 Data Flow Architecture
+
+### 1. Transaction Monitoring Flow
+
+```
+┌──────────────┐
+│ Solana       │
+│ Blockchain   │
+└──────┬───────┘
+       │ New Transaction
+       ▼
+┌──────────────────────┐
+│ RPC Node Connection  │
+│ - WebSocket Stream   │
+│ - Account Subscribe  │
+│ - Log Subscribe      │
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ Transaction Parser   │
+│ - Decode Instructions│
+│ - Parse Logs         │
+│ - Extract Metadata   │
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ Indexer Service      │
+│ - Normalize Data     │
+│ - Enrich Context     │
+│ - Calculate Metrics  │
+└──────┬───────────────┘
+       │
+       ├──────────────────────┐
+       │                      │
+       ▼                      ▼
+┌──────────────┐      ┌──────────────┐
+│ PostgreSQL   │      │ Redis Cache  │
+│ - Store Raw  │      │ - Hot Data   │
+│ - TimeSeries │      │ - Real-time  │
+└──────┬───────┘      └──────┬───────┘
+       │                      │
+       └──────────┬───────────┘
+                  │
+                  ▼
+       ┌──────────────────────┐
+       │ Analytics Service    │
+       │ - Aggregate Metrics  │
+       │ - Trend Analysis     │
+       │ - Anomaly Detection  │
+       └──────┬───────────────┘
+              │
+              ├─────────────────┐
+              │                 │
+              ▼                 ▼
+       ┌──────────────┐  ┌──────────────┐
+       │ Alert Engine │  │ WebSocket    │
+       │ - Evaluate   │  │ - Push to    │
+       │   Rules      │  │   Clients    │
+       │ - Trigger    │  └──────────────┘
+       │   Alerts     │
+       └──────┬───────┘
+              │
+              ▼
+       ┌──────────────────────┐
+       │ Notification Service │
+       │ - Email              │
+       │ - Slack              │
+       │ - Discord            │
+       └──────────────────────┘
+```
+
+### 2. Real-Time Dashboard Update Flow
+
+```
+┌──────────────┐
+│ Client       │
+│ (Browser)    │
+└──────┬───────┘
+       │ 1. Connect WebSocket
+       ▼
+┌──────────────────────┐
+│ WebSocket Server     │
+│ - Authenticate       │
+│ - Subscribe to Room  │
+└──────┬───────────────┘
+       │ 2. Subscribe to Program
+       ▼
+┌──────────────────────┐
+│ Monitor Service      │
+│ - Register Listener  │
+│ - Filter Events      │
+└──────┬───────────────┘
+       │ 3. New Transaction Event
+       ▼
+┌──────────────────────┐
+│ Event Processor      │
+│ - Format Data        │
+│ - Apply Filters      │
+└──────┬───────────────┘
+       │ 4. Emit to Room
+       ▼
+┌──────────────────────┐
+│ WebSocket Server     │
+│ - Broadcast to       │
+│   Subscribed Clients │
+└──────┬───────────────┘
+       │ 5. Receive Update
+       ▼
+┌──────────────┐
+│ Client       │
+│ - Update UI  │
+│ - Render     │
+└──────────────┘
+```
+
+## 🧩 Component Architecture
+
+### Backend Services (NestJS)
+
+```
+src/
+├── main.ts                          # Application entry point
+├── app.module.ts                    # Root module
+│
+├── common/                          # Shared utilities
+│   ├── decorators/
+│   ├── filters/
+│   ├── guards/
+│   ├── interceptors/
+│   ├── pipes/
+│   └── utils/
+│
+├── config/                          # Configuration
+│   ├── app.config.ts
+│   ├── database.config.ts
+│   ├── redis.config.ts
+│   └── solana.config.ts
+│
+├── modules/
+│   ├── auth/                        # Authentication module
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts
+│   │   ├── auth.module.ts
+│   │   ├── strategies/
+│   │   │   ├── jwt.strategy.ts
+│   │   │   └── local.strategy.ts
+│   │   └── guards/
+│   │       ├── jwt-auth.guard.ts
+│   │       └── roles.guard.ts
+│   │
+│   ├── users/                       # User management
+│   │   ├── users.controller.ts
+│   │   ├── users.service.ts
+│   │   ├── users.module.ts
+│   │   ├── entities/
+│   │   └── dto/
+│   │
+│   ├── programs/                    # Solana programs
+│   │   ├── programs.controller.ts
+│   │   ├── programs.service.ts
+│   │   ├── programs.module.ts
+│   │   ├── entities/
+│   │   └── dto/
+│   │
+│   ├── transactions/                # Transaction monitoring
+│   │   ├── transactions.controller.ts
+│   │   ├── transactions.service.ts
+│   │   ├── transactions.module.ts
+│   │   ├── entities/
+│   │   └── dto/
+│   │
+│   ├── monitor/                     # Real-time monitoring
+│   │   ├── monitor.gateway.ts       # WebSocket gateway
+│   │   ├── monitor.service.ts
+│   │   ├── monitor.module.ts
+│   │   └── listeners/
+│   │
+│   ├── indexer/                     # Blockchain indexer
+│   │   ├── indexer.service.ts
+│   │   ├── indexer.module.ts
+│   │   ├── parsers/
+│   │   │   ├── transaction.parser.ts
+│   │   │   ├── instruction.parser.ts
+│   │   │   └── log.parser.ts
+│   │   └── processors/
+│   │
+│   ├── analytics/                   # Analytics engine
+│   │   ├── analytics.controller.ts
+│   │   ├── analytics.service.ts
+│   │   ├── analytics.module.ts
+│   │   └── aggregators/
+│   │
+│   ├── alerts/                      # Alert system
+│   │   ├── alerts.controller.ts
+│   │   ├── alerts.service.ts
+│   │   ├── alerts.module.ts
+│   │   ├── entities/
+│   │   ├── dto/
+│   │   └── rules/
+│   │
+│   ├── notifications/               # Notification service
+│   │   ├── notifications.service.ts
+│   │   ├── notifications.module.ts
+│   │   └── providers/
+│   │       ├── email.provider.ts
+│   │       ├── slack.provider.ts
+│   │       └── discord.provider.ts
+│   │
+│   └── solana/                      # Solana integration
+│       ├── solana.service.ts
+│       ├── solana.module.ts
+│       ├── rpc/
+│       │   ├── connection.manager.ts
+│       │   └── websocket.manager.ts
+│       └── utils/
+│
+└── database/                        # Database layer
+    ├── prisma/
+    │   ├── schema.prisma
+    │   └── migrations/
+    └── seeds/
+```
+
+### Frontend Architecture (Next.js)
+
+```
+src/
+├── app/                             # Next.js 14 App Router
+│   ├── (auth)/                      # Auth routes group
+│   │   ├── login/
+│   │   ├── register/
+│   │   └── layout.tsx
+│   │
+│   ├── (dashboard)/                 # Dashboard routes group
+│   │   ├── dashboard/
+│   │   │   ├── page.tsx
+│   │   │   └── loading.tsx
+│   │   ├── programs/
+│   │   │   ├── page.tsx
+│   │   │   ├── [id]/
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── transactions/
+│   │   │   │   ├── analytics/
+│   │   │   │   └── alerts/
+│   │   │   └── new/
+│   │   ├── transactions/
+│   │   ├── analytics/
+│   │   ├── alerts/
+│   │   ├── settings/
+│   │   └── layout.tsx
+│   │
+│   ├── api/                         # API routes (if needed)
+│   │   └── [...]/
+│   │
+│   ├── layout.tsx                   # Root layout
+│   ├── page.tsx                     # Landing page
+│   └── globals.css
+│
+├── components/                      # React components
+│   ├── ui/                          # shadcn/ui components
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── dialog.tsx
+│   │   ├── dropdown-menu.tsx
+│   │   ├── input.tsx
+│   │   ├── table.tsx
+│   │   └── ...
+│   │
+│   ├── dashboard/                   # Dashboard components
+│   │   ├── overview-stats.tsx
+│   │   ├── recent-transactions.tsx
+│   │   ├── performance-chart.tsx
+│   │   └── alert-list.tsx
+│   │
+│   ├── programs/                    # Program components
+│   │   ├── program-card.tsx
+│   │   ├── program-list.tsx
+│   │   └── program-details.tsx
+│   │
+│   ├── transactions/                # Transaction components
+│   │   ├── transaction-table.tsx
+│   │   ├── transaction-details.tsx
+│   │   └── transaction-replay.tsx
+│   │
+│   ├── charts/                      # Chart components
+│   │   ├── line-chart.tsx
+│   │   ├── bar-chart.tsx
+│   │   ├── area-chart.tsx
+│   │   └── real-time-chart.tsx
+│   │
+│   └── layout/                      # Layout components
+│       ├── header.tsx
+│       ├── sidebar.tsx
+│       ├── footer.tsx
+│       └── breadcrumb.tsx
+│
+├── lib/                             # Utilities and helpers
+│   ├── api/                         # API client
+│   │   ├── client.ts
+│   │   ├── endpoints.ts
+│   │   └── types.ts
+│   │
+│   ├── websocket/                   # WebSocket client
+│   │   ├── socket.ts
+│   │   └── hooks.ts
+│   │
+│   ├── solana/                      # Solana utilities
+│   │   ├── connection.ts
+│   │   ├── formatters.ts
+│   │   └── parsers.ts
+│   │
+│   └── utils/                       # General utilities
+│       ├── cn.ts
+│       ├── formatters.ts
+│       └── validators.ts
+│
+├── hooks/                           # Custom React hooks
+│   ├── use-auth.ts
+│   ├── use-programs.ts
+│   ├── use-transactions.ts
+│   ├── use-real-time.ts
+│   └── use-analytics.ts
+│
+├── store/                           # State management (Zustand)
+│   ├── auth.store.ts
+│   ├── program.store.ts
+│   ├── transaction.store.ts
+│   └── ui.store.ts
+│
+├── types/                           # TypeScript types
+│   ├── api.types.ts
+│   ├── program.types.ts
+│   ├── transaction.types.ts
+│   └── user.types.ts
+│
+└── config/                          # Configuration
+    ├── site.config.ts
+    └── constants.ts
+```
+
+## 🔐 Security Architecture
+
+### Authentication Flow
+
+```
+┌──────────────┐
+│   Client     │
+└──────┬───────┘
+       │ 1. Login Request (email, password)
+       ▼
+┌──────────────────────┐
+│ Auth Controller      │
+│ - Validate Input     │
+└──────┬───────────────┘
+       │ 2. Verify Credentials
+       ▼
+┌──────────────────────┐
+│ Auth Service         │
+│ - Hash Password      │
+│ - Compare Hash       │
+└──────┬───────────────┘
+       │ 3. Generate Tokens
+       ▼
+┌──────────────────────┐
+│ JWT Service          │
+│ - Access Token (15m) │
+│ - Refresh Token (7d) │
+└──────┬───────────────┘
+       │ 4. Return Tokens
+       ▼
+┌──────────────┐
+│   Client     │
+│ - Store      │
+│   Tokens     │
+└──────────────┘
+```
+
+### Authorization Layers
+
+1. **Route Guards**: Protect API endpoints
+2. **Role-Based Access Control (RBAC)**: User roles and permissions
+3. **Resource Ownership**: Users can only access their resources
+4. **API Key Authentication**: For programmatic access
+
+### Security Measures
+
+- **Password Hashing**: bcrypt with salt rounds
+- **JWT Tokens**: Short-lived access tokens, long-lived refresh tokens
+- **Rate Limiting**: Prevent abuse and DDoS
+- **CORS**: Whitelist allowed origins
+- **Input Validation**: Validate all user inputs
+- **SQL Injection Prevention**: Parameterized queries via Prisma
+- **XSS Protection**: Content Security Policy headers
+- **HTTPS Only**: Enforce secure connections
+
+## 📊 Database Architecture
+
+### Entity Relationship Diagram
+
+```
+┌─────────────────┐
+│     Users       │
+│─────────────────│
+│ id (PK)         │
+│ email           │
+│ password_hash   │
+│ role            │
+│ created_at      │
+└────────┬────────┘
+         │ 1:N
+         │
+┌────────▼────────┐
+│    Programs     │
+│─────────────────│
+│ id (PK)         │
+│ user_id (FK)    │
+│ program_id      │
+│ name            │
+│ network         │
+│ created_at      │
+└────────┬────────┘
+         │ 1:N
+         │
+┌────────▼────────────┐
+│   Transactions      │
+│─────────────────────│
+│ id (PK)             │
+│ program_id (FK)     │
+│ signature           │
+│ slot                │
+│ block_time          │
+│ status              │
+│ compute_units       │
+│ fee                 │
+│ created_at          │
+└─────────────────────┘
+
+┌─────────────────┐
+│     Alerts      │
+│─────────────────│
+│ id (PK)         │
+│ program_id (FK) │
+│ name            │
+│ condition       │
+│ threshold       │
+│ enabled         │
+│ created_at      │
+└────────┬────────┘
+         │ 1:N
+         │
+┌────────▼────────────┐
+│  Alert_Triggers     │
+│─────────────────────│
+│ id (PK)             │
+│ alert_id (FK)       │
+│ triggered_at        │
+│ value               │
+│ notified            │
+└─────────────────────┘
+```
+
+## 🚀 Deployment Architecture
+
+### Production Environment
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Load Balancer                         │
+│                    (Nginx/HAProxy)                       │
+└────────────────────┬────────────────────────────────────┘
+                     │
+          ┌──────────┼──────────┐
+          │                     │
+┌─────────▼─────────┐  ┌────────▼────────┐
+│  API Server 1     │  │  API Server 2   │
+│  (NestJS)         │  │  (NestJS)       │
+│  - Docker         │  │  - Docker       │
+│  - PM2            │  │  - PM2          │
+└─────────┬─────────┘  └────────┬────────┘
+          │                     │
+          └──────────┬──────────┘
+                     │
+          ┌──────────┼──────────┐
+          │          │          │
+┌─────────▼──┐  ┌───▼────┐  ┌──▼─────────┐
+│ PostgreSQL │  │ Redis  │  │ RPC Nodes  │
+│ (Primary)  │  │ Cluster│  │ (Multiple) │
+└────────────┘  └────────┘  └────────────┘
+```
+
+### Monitoring & Observability
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Application                           │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │   Metrics    │  │     Logs     │  │    Traces    │ │
+│  │ (Prometheus) │  │   (Winston)  │  │   (Jaeger)   │ │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │
+└─────────┼──────────────────┼──────────────────┼─────────┘
+          │                  │                  │
+          └──────────────────┼──────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────┐
+│                    Monitoring Stack                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │   Grafana    │  │      ELK     │  │    Jaeger    │  │
+│  │  (Dashboards)│  │    (Logs)    │  │   (Traces)   │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+└──────────────────────────────────────────────────────────┘
+```
+
+## 📈 Scalability Considerations
+
+### Horizontal Scaling
+- **API Servers**: Multiple instances behind load balancer
+- **Worker Processes**: Separate indexer and analytics workers
+- **Database**: Read replicas for query distribution
+
+### Vertical Scaling
+- **Database**: Increase resources for heavy queries
+- **Redis**: Increase memory for larger cache
+- **RPC Nodes**: Use dedicated high-performance nodes
+
+### Caching Strategy
+- **L1 Cache**: In-memory (Node.js)
+- **L2 Cache**: Redis (shared across instances)
+- **L3 Cache**: CDN (static assets)
+
+### Queue Management
+- **Transaction Processing**: Bull queue with Redis
+- **Alert Processing**: Separate queue with priority
+- **Notification Delivery**: Retry logic with exponential backoff
+
+---
+
+**Next Steps**: Proceed to [02-BACKEND-NESTJS.md](./02-BACKEND-NESTJS.md) for detailed backend implementation guide.

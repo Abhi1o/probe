@@ -1,0 +1,243 @@
+// Probe Platform - Database Schema
+// PostgreSQL + TimescaleDB for time-series data
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  programs      Program[]
+  apiKeys       ApiKey[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+  DEVELOPER
+}
+
+// Solana Programs
+model Program {
+  id            String   @id @default(uuid())
+  userId        String
+  programId     String   @unique
+  name          String
+  description   String?
+  network       Network
+  repositoryUrl String?
+  isActive      Boolean  @default(true)
+  
+  // Ownership Verification Fields
+  ownerWallet           String?
+  upgradeAuthority      String?
+  verificationMethod    String?
+  verifiedAt            DateTime?
+  verificationDetails   String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  alerts       Alert[]
+  metrics      Metric[]
+
+  @@index([userId])
+  @@index([programId])
+  @@index([network])
+  @@map("programs")
+}
+
+enum Network {
+  MAINNET_BETA
+  DEVNET
+  TESTNET
+}
+
+// Transactions (TimescaleDB Hypertable)
+model Transaction {
+  id           BigInt   @id @default(autoincrement())
+  programId    String
+  signature    String   // Removed @unique for TimescaleDB compatibility
+  slot         BigInt
+  blockTime    DateTime
+  blockDateUtc DateTime @db.Date
+  status       TxStatus
+  fee          BigInt
+  computeUnits Int?
+  signer       String
+  instructions Json?
+  logs         String[]
+  error        String?
+  rawData      Json?
+  indexedAt    DateTime @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, blockTime(sort: Desc)])
+  @@index([signature])
+  @@index([signer, blockTime(sort: Desc)])
+  @@index([status])
+  @@index([blockDateUtc])
+  @@map("transactions")
+}
+
+enum TxStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+// Metrics (TimescaleDB Continuous Aggregates)
+model Metric {
+  id        BigInt   @id @default(autoincrement())
+  programId String
+  timestamp DateTime
+  hour      DateTime @db.Timestamptz
+  txCount   Int      @default(0)
+  successCount Int   @default(0)
+  failureCount Int   @default(0)
+  avgComputeUnits Float?
+  avgFee    Float?
+  medianComputeUnits Float?
+  createdAt DateTime @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, hour(sort: Desc)])
+  @@map("metrics")
+}
+
+// Alerts
+model Alert {
+  id          String        @id @default(uuid())
+  programId   String
+  name        String
+  description String?
+  condition   AlertCondition
+  threshold   Float
+  comparison  Comparison
+  channels    Channel[]
+  cooldown    Int           @default(300) // seconds
+  enabled     Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  program  Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  triggers AlertTrigger[]
+
+  @@index([programId])
+  @@index([enabled])
+  @@map("alerts")
+}
+
+enum AlertCondition {
+  TRANSACTION_FAILURE_RATE
+  COMPUTE_UNITS_EXCEEDED
+  TRANSACTION_COUNT_THRESHOLD
+  CUSTOM_METRIC
+}
+
+enum Comparison {
+  GREATER_THAN
+  LESS_THAN
+  EQUAL_TO
+}
+
+enum Channel {
+  EMAIL
+  SLACK
+  DISCORD
+  WEBHOOK
+}
+
+// Alert Triggers
+model AlertTrigger {
+  id          String   @id @default(uuid())
+  alertId     String
+  triggeredAt DateTime @default(now())
+  value       Float
+  notified    Boolean  @default(false)
+  notifiedAt  DateTime?
+
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([alertId, triggeredAt(sort: Desc)])
+  @@map("alert_triggers")
+}
+
+// API Keys
+model ApiKey {
+  id        String   @id @default(uuid())
+  userId    String
+  key       String   @unique
+  name      String
+  expiresAt DateTime?
+  lastUsed  DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+// Audit Logs
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// Notifications
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([read])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  ALERT
+  INFO
+  WARNING
+  ERROR
+}
