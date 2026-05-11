@@ -23,7 +23,7 @@ import { WalletsModule } from './modules/wallets/wallets.module';
 import { MevModule } from './modules/mev/mev.module';
 
 function getRedisConfig() {
-  const redisUrl = process.env.REDIS_URL;
+  const redisUrl = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL;
 
   if (redisUrl) {
     const parsed = new URL(redisUrl);
