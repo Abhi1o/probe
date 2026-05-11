@@ -47,6 +47,18 @@ apiClient.interceptors.response.use(
 
         const { accessToken } = response.data;
         localStorage.setItem('accessToken', accessToken);
+        
+        // Update store if possible
+        try {
+          const { useAuthStore } = await import('@/store/auth.store');
+          useAuthStore.getState().setAuth(
+            useAuthStore.getState().user!,
+            accessToken,
+            localStorage.getItem('refreshToken')!
+          );
+        } catch (e) {
+          console.error('Failed to update auth store after refresh', e);
+        }
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
@@ -54,6 +66,15 @@ apiClient.interceptors.response.use(
         // Clear tokens and redirect to login
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        
+        // Clear auth store
+        try {
+          const { useAuthStore } = await import('@/store/auth.store');
+          useAuthStore.getState().clearAuth();
+        } catch (e) {
+          console.error('Failed to clear auth store', e);
+        }
+
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }

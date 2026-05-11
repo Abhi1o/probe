@@ -59,6 +59,9 @@ model Program {
   transactions Transaction[]
   alerts       Alert[]
   metrics      Metric[]
+  instructionCallRecords    InstructionCallRecord[]
+  instructionHourlyAggregates InstructionHourlyAggregate[]
+  healthScore               ProgramHealthScore?
 
   @@index([userId])
   @@index([programId])
@@ -240,4 +243,237 @@ enum NotificationType {
   INFO
   WARNING
   ERROR
+}
+
+// ─── Instruction Analytics (Feature: Contract Method Analytics) ───────────────
+// Per-instruction call records — the "Alchemy Monitor per-method" for Solana programs
+model InstructionCallRecord {
+  id                      BigInt   @id @default(autoincrement())
+  programId               String
+  environment             String   @default("DEVNET")
+
+  // Instruction identity (decoded from IDL or discriminator)
+  instructionName         String?  // null if IDL not uploaded
+  instructionDiscriminator String? // 8-byte hex anchor discriminator
+  displayName             String?  // user-friendly override
+
+  // Transaction reference
+  signature               String
+  slot                    BigInt
+  blockTime               DateTime
+
+  // Outcome
+  success                 Boolean
+  errorCode               String?  // Anchor error code (e.g. "6003") or system error
+  errorName               String?  // Human-readable from IDL (e.g. "SlippageExceeded")
+  errorMessage            String?  // Full error message
+  errorCategory           String?  // business_logic | access_control | validation | math | state | external | system
+
+  // Performance
+  computeUnitsUsed        Int?
+  computeUnitsRequested   Int?     // From ComputeBudget instruction
+  feeLamports             BigInt?
+  priorityFeeLamports     BigInt?
+
+  // Caller
+  callerWallet            String?  // First signer
+  callerType              String?  // bot | whale | smart_money | retail
+
+  // Arguments (JSON — decoded from IDL)
+  decodedArgs             Json?
+
+  // Events emitted by this instruction
+  emittedEvents           Json?
+
+  // CPI context
+  cpiCount                Int      @default(0)
+  involvedPrograms        String[]
+
+  timestamp               DateTime
+
+  program                 Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, instructionName, timestamp(sort: Desc)])
+  @@index([programId, success, timestamp(sort: Desc)])
+  @@index([programId, errorCode, timestamp(sort: Desc)])
+  @@index([callerWallet, programId, timestamp(sort: Desc)])
+  @@index([signature])
+  @@map("instruction_call_records")
+}
+
+// Hourly aggregate for fast dashboard queries
+model InstructionHourlyAggregate {
+  id               BigInt   @id @default(autoincrement())
+  programId        String
+  instructionName  String
+  environment      String   @default("DEVNET")
+  bucket           DateTime // time_bucket('1 hour', timestamp)
+
+  callCount        Int      @default(0)
+  successCount     Int      @default(0)
+  failureCount     Int      @default(0)
+  errorRate        Float    @default(0)
+  successRate      Float    @default(0)
+
+  avgComputeUnits  Int?
+  p50ComputeUnits  Int?
+  p95ComputeUnits  Int?
+
+  uniqueCallers    Int      @default(0)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  program          Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, instructionName, environment, bucket])
+  @@index([programId, bucket(sort: Desc)])
+  @@map("instruction_hourly_aggregates")
+}
+
+// AI-generated error explanations cache
+model ErrorExplanationCache {
+  id              BigInt   @id @default(autoincrement())
+  programId       String
+  instructionName String
+  errorCode       String
+  explanation     String
+  fixSuggestion   String
+  generatedAt     DateTime @default(now())
+  expiresAt       DateTime
+
+  @@unique([programId, instructionName, errorCode])
+  @@map("error_explanation_cache")
+}
+
+// ─── Program Health Score ─────────────────────────────────────────────────────
+// Computed health score for each program — updated every 5 minutes
+model ProgramHealthScore {
+  id                    String   @id @default(uuid())
+  programId             String   @unique
+
+  // Overall score (0-100)
+  score                 Int      // 0-100
+  grade                 String   // A+ A B C D F
+  trend                 String   // improving | stable | declining
+
+  // Component scores (each 0-100)
+  reliabilityScore      Int      // Based on success rate
+  performanceScore      Int      // Based on compute units vs budget
+  activityScore         Int      // Based on transaction volume trend
+  errorScore            Int      // Based on error rate and diversity
+  userScore             Int      // Based on unique users and retention
+
+  // Raw metrics used for scoring
+  successRate24h        Float
+  successRate7d         Float
+  avgComputeUnits24h    Float
+  errorRate24h          Float
+  txCount24h            Int
+  txCount7d             Int
+  uniqueUsers24h        Int
+  uniqueUsers7d         Int
+  topErrorCode          String?
+  topErrorCount         Int      @default(0)
+
+  // Insights
+  strengths             String[] // e.g. ["High success rate", "Low compute usage"]
+  warnings              String[] // e.g. ["Error rate increased 15% today"]
+  recommendations       String[] // e.g. ["Consider optimizing compute units"]
+
+  computedAt            DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  program               Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@map("program_health_scores")
+}
+
+// ─── CPI (Cross-Program Invocation) Analysis ─────────────────────────────────
+// Tracks which programs call which other programs — unique Solana-native feature
+model CpiEdge {
+  id                String   @id @default(uuid())
+
+  // The calling program (monitored by Probe)
+  callerProgramId   String
+  callerLabel       String   @default("Unknown")
+
+  // The called program
+  calleeProgramId   String
+  calleeLabel       String   @default("Unknown")
+
+  // Aggregate stats (updated on each new transaction)
+  invocationCount   Int      @default(0)
+  successCount      Int      @default(0)
+  failureCount      Int      @default(0)
+  avgComputeUnits   Float    @default(0)
+  maxDepth          Int      @default(1)   // Max CPI nesting depth seen
+  lastInvoked       DateTime @default(now())
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([callerProgramId, calleeProgramId])
+  @@index([callerProgramId])
+  @@index([calleeProgramId])
+  @@map("cpi_edges")
+}
+
+// ─── Wallet Intelligence ──────────────────────────────────────────────────────
+// Basic wallet classification derived from on-chain behavior
+model WalletProfile {
+  address           String   @id
+
+  // Classification
+  primaryLabel      String   @default("retail")  // bot | whale | smart_money | retail | fresh | dormant
+  isBot             Boolean  @default(false)
+  isWhale           Boolean  @default(false)
+  isSmartMoney      Boolean  @default(false)
+  isFresh           Boolean  @default(false)
+  isDormant         Boolean  @default(false)
+
+  // Behavioral stats (computed from transactions)
+  totalTxCount      Int      @default(0)
+  successRate       Float    @default(0)
+  avgTxPerDay       Float    @default(0)
+  firstSeenAt       DateTime?
+  lastSeenAt        DateTime?
+
+  // Program-specific stats (JSON: { programId: { txCount, successRate, fees } })
+  programStats      Json?
+
+  updatedAt         DateTime @updatedAt
+
+  @@map("wallet_profiles")
+}
+
+// ─── MEV Detection ────────────────────────────────────────────────────────────
+model MevEvent {
+  id                String   @id @default(uuid())
+  programId         String
+  mevType           String   // sandwich | frontrun | backrun | arbitrage | jit_liquidity
+  severity          String   // low | medium | high | critical
+
+  // Transaction signatures involved
+  victimSignature   String?
+  attackerSignature String?
+  relatedSignatures String[]
+
+  // Wallets
+  attackerWallet    String?
+  victimWallet      String?
+
+  // Financial impact
+  estimatedLostLamports  BigInt   @default(0)
+  estimatedProfitLamports BigInt  @default(0)
+
+  // Context
+  slot              BigInt?
+  detectedAt        DateTime @default(now())
+  description       String?
+
+  @@index([programId, detectedAt(sort: Desc)])
+  @@index([attackerWallet])
+  @@index([mevType])
+  @@map("mev_events")
 }

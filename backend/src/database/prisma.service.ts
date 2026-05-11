@@ -17,9 +17,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       this.logger.log('✅ Database connected successfully');
       
-      // Enable TimescaleDB if not already enabled
-      await this.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;`);
-      this.logger.log('✅ TimescaleDB extension enabled');
+      // Enable TimescaleDB if not already enabled (disabled for now)
+      // await this.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;`);
+      // this.logger.log('✅ TimescaleDB extension enabled');
     } catch (error) {
       this.logger.error('❌ Database connection failed', error);
       throw error;
