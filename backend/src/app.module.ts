@@ -16,6 +16,32 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SolanaModule } from './modules/solana/solana.module';
+import { InstructionAnalyticsModule } from './modules/instruction-analytics/instruction-analytics.module';
+import { HealthModule } from './modules/health/health.module';
+import { CpiModule } from './modules/cpi/cpi.module';
+import { WalletsModule } from './modules/wallets/wallets.module';
+import { MevModule } from './modules/mev/mev.module';
+
+function getRedisConfig() {
+  const redisUrl = process.env.REDIS_URL;
+
+  if (redisUrl) {
+    const parsed = new URL(redisUrl);
+    return {
+      host: parsed.hostname,
+      port: Number(parsed.port || 6379),
+      password: parsed.password || undefined,
+      tls: parsed.protocol === 'rediss:' ? {} : undefined,
+    };
+  }
+
+  return {
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    password: process.env.REDIS_PASSWORD || undefined,
+    tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+  };
+}
 
 @Module({
   imports: [
@@ -36,10 +62,7 @@ import { SolanaModule } from './modules/solana/solana.module';
 
     // Bull Queue
     BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT) || 6379,
-      },
+      redis: getRedisConfig(),
     }),
 
     // Core Modules
@@ -54,6 +77,11 @@ import { SolanaModule } from './modules/solana/solana.module';
     AlertsModule,
     NotificationsModule,
     SolanaModule,
+    InstructionAnalyticsModule,
+    HealthModule,
+    CpiModule,
+    WalletsModule,
+    MevModule,
   ],
 })
 export class AppModule {}

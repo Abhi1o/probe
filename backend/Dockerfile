@@ -1,62 +1,43 @@
-# ============================================
-# Probe Backend - Production Dockerfile
-# ============================================
+FROM node:20-bookworm-slim AS base
 
-# Stage 1: Build
-FROM node:20-alpine AS builder
-
+ENV NODE_ENV=production
 WORKDIR /app
 
-# Copy package files
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends dumb-init openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM base AS deps
+
 COPY package*.json ./
-COPY prisma ./prisma/
+COPY prisma ./prisma
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --only=production && \
-    npm cache clean --force
+FROM deps AS builder
 
-# Copy source code
 COPY . .
-
-# Generate Prisma Client
 RUN npx prisma generate
-
-# Build application
 RUN npm run build
+RUN npm prune --omit=dev
 
-# ============================================
-# Stage 2: Production
-FROM node:20-alpine
+FROM base AS runner
 
-WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package*.json ./
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN chmod +x ./docker-entrypoint.sh \
+  && useradd --system --uid 1001 --create-home nestjs \
+  && chown -R nestjs:nestjs /app
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
-
-# Copy built application from builder
-COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nestjs:nodejs /app/package*.json ./
-
-# Create logs directory
-RUN mkdir -p /app/logs && chown -R nestjs:nodejs /app/logs
-
-# Switch to non-root user
 USER nestjs
 
-# Expose ports
-EXPOSE 3000 9464
+EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://127.0.0.1:' + (process.env.PORT || 3000) + '/api/v1/healthz', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
-# Start application with dumb-init
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/main"]
-
+CMD ["./docker-entrypoint.sh"]
