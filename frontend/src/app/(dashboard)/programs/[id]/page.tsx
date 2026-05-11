@@ -30,6 +30,11 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatAddress, formatRelativeTime, formatNumber, copyToClipboard } from '@/lib/utils';
+import { MethodsTab } from '@/components/instruction-analytics/MethodsTab';
+import { HealthScoreCard } from '@/components/health/HealthScoreCard';
+import { CpiTab } from '@/components/cpi/CpiTab';
+import { WalletIntelligenceTab } from '@/components/wallets/WalletIntelligenceTab';
+import { MevTab } from '@/components/mev/MevTab';
 
 // ─── Colour palette ───────────────────────────────────────────────────────────
 const C = {
@@ -189,6 +194,11 @@ export default function ProgramDetailsPage({ params }: { params: { id: string } 
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="health">Health Score</TabsTrigger>
+          <TabsTrigger value="methods">Methods</TabsTrigger>
+          <TabsTrigger value="cpi">CPI Graph</TabsTrigger>
+          <TabsTrigger value="wallets">Wallets</TabsTrigger>
+          <TabsTrigger value="mev">MEV</TabsTrigger>
           <TabsTrigger value="compute">Compute Units</TabsTrigger>
           <TabsTrigger value="fees">Fee Analysis</TabsTrigger>
           <TabsTrigger value="signers">Top Signers</TabsTrigger>
@@ -202,6 +212,21 @@ export default function ProgramDetailsPage({ params }: { params: { id: string } 
         </TabsContent>
         <TabsContent value="analytics">
           <AnalyticsTab programDbId={params.id} />
+        </TabsContent>
+        <TabsContent value="health">
+          <HealthScoreCard programId={params.id} />
+        </TabsContent>
+        <TabsContent value="methods">
+          <MethodsTab programDbId={params.id} />
+        </TabsContent>
+        <TabsContent value="cpi">
+          <CpiTab programDbId={params.id} />
+        </TabsContent>
+        <TabsContent value="wallets">
+          <WalletIntelligenceTab programDbId={params.id} />
+        </TabsContent>
+        <TabsContent value="mev">
+          <MevTab programDbId={params.id} />
         </TabsContent>
         <TabsContent value="compute">
           <ComputeTab programDbId={params.id} />

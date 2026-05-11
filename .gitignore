@@ -52,3 +52,13 @@ yarn-error.log*
 .cache/
 .temp/
 tmp/
+
+# Docs / generated writeups
+*.md
+*.MD
+docs/
+*.doc
+*.docx
+*.pdf
+*.zip
+*.tsbuildinfo

@@ -1,21 +1,51 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { usePrograms } from '@/hooks/use-programs';
+import { apiClient } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusIcon, Search, Activity, TrendingUp, AlertCircle } from 'lucide-react';
+import { PlusIcon, Search, Activity, AlertCircle, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { formatAddress, formatNumber } from '@/lib/utils';
+
+// ─── Mini health badge shown on each program card ─────────────────────────────
+function HealthBadge({ programId }: { programId: string }) {
+  const { data } = useQuery({
+    queryKey: ['health', programId],
+    queryFn: async () => (await apiClient.get(`/programs/${programId}/health`)).data,
+    enabled: !!programId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (!data) return null;
+
+  const score = data.score as number;
+  const grade = data.grade as string;
+
+  const color =
+    score >= 90 ? 'text-green-600 bg-green-50 border-green-200'
+    : score >= 75 ? 'text-blue-600 bg-blue-50 border-blue-200'
+    : score >= 60 ? 'text-yellow-600 bg-yellow-50 border-yellow-200'
+    : score >= 40 ? 'text-orange-600 bg-orange-50 border-orange-200'
+    : 'text-red-600 bg-red-50 border-red-200';
+
+  return (
+    <div className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${color}`}>
+      <Shield className="h-3 w-3" />
+      {score} <span className="opacity-70">({grade})</span>
+    </div>
+  );
+}
 
 export default function ProgramsPage() {
   const { programs, isLoading } = usePrograms();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter programs based on search
   const filteredPrograms = programs?.filter((program) =>
     program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     program.programId.toLowerCase().includes(searchQuery.toLowerCase())
@@ -71,16 +101,19 @@ export default function ProgramsPage() {
             <Link key={program.id} href={`/programs/${program.id}`}>
               <Card className="transition-all hover:shadow-lg cursor-pointer h-full">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{program.name}</CardTitle>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg truncate">{program.name}</CardTitle>
                       <CardDescription className="font-mono text-xs mt-1">
                         {formatAddress(program.programId, 6)}
                       </CardDescription>
                     </div>
-                    <Badge variant={program.isActive ? 'success' : 'secondary'}>
-                      {program.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <Badge variant={program.isActive ? 'success' : 'secondary'}>
+                        {program.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <HealthBadge programId={program.id} />
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -151,3 +184,4 @@ export default function ProgramsPage() {
     </div>
   );
 }
+

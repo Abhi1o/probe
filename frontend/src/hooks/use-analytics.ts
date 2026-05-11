@@ -152,3 +152,144 @@ export function useUniqueUsers(programId: string, period: string = '7d') {
     refetchInterval: 60000,
   });
 }
+
+// ─── Instruction Analytics Hooks ─────────────────────────────────────────────
+
+export function useInstructionOverview(programId: string, windowHours = 24) {
+  return useQuery({
+    queryKey: ['instructions', 'overview', programId, windowHours],
+    queryFn: async () => {
+      const res = await apiClient.get(`/programs/${programId}/instructions/overview`, {
+        params: { window: windowHours },
+      });
+      return res.data;
+    },
+    enabled: !!programId,
+    refetchInterval: 30000,
+  });
+}
+
+export function useInstructionLeaderboard(
+  programId: string,
+  metric = 'calls',
+  windowHours = 24,
+  limit = 10,
+) {
+  return useQuery({
+    queryKey: ['instructions', 'leaderboard', programId, metric, windowHours],
+    queryFn: async () => {
+      const res = await apiClient.get(`/programs/${programId}/instructions/leaderboard`, {
+        params: { metric, window: windowHours, limit },
+      });
+      return res.data;
+    },
+    enabled: !!programId,
+    refetchInterval: 60000,
+  });
+}
+
+export function useInstructionUsage(
+  programId: string,
+  instructionName: string,
+  windowHours = 24,
+) {
+  return useQuery({
+    queryKey: ['instructions', 'usage', programId, instructionName, windowHours],
+    queryFn: async () => {
+      const res = await apiClient.get(
+        `/programs/${programId}/instructions/${encodeURIComponent(instructionName)}/usage`,
+        { params: { window: windowHours } },
+      );
+      return res.data;
+    },
+    enabled: !!programId && !!instructionName,
+    refetchInterval: 30000,
+  });
+}
+
+export function useInstructionErrors(
+  programId: string,
+  instructionName: string,
+  windowHours = 24,
+) {
+  return useQuery({
+    queryKey: ['instructions', 'errors', programId, instructionName, windowHours],
+    queryFn: async () => {
+      const res = await apiClient.get(
+        `/programs/${programId}/instructions/${encodeURIComponent(instructionName)}/errors`,
+        { params: { window: windowHours } },
+      );
+      return res.data;
+    },
+    enabled: !!programId && !!instructionName,
+    refetchInterval: 30000,
+  });
+}
+
+export function useInstructionLog(
+  programId: string,
+  options: {
+    instruction?: string;
+    success?: boolean;
+    errorCode?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  return useQuery({
+    queryKey: ['instructions', 'log', programId, options],
+    queryFn: async () => {
+      const res = await apiClient.get(`/programs/${programId}/instructions/log`, {
+        params: {
+          instruction: options.instruction,
+          success: options.success,
+          errorCode: options.errorCode,
+          limit: options.limit || 50,
+          offset: options.offset || 0,
+        },
+      });
+      return res.data;
+    },
+    enabled: !!programId,
+    refetchInterval: 15000,
+  });
+}
+
+export function useNewErrors(programId: string, sinceHours = 24) {
+  return useQuery({
+    queryKey: ['instructions', 'new-errors', programId, sinceHours],
+    queryFn: async () => {
+      const res = await apiClient.get(`/programs/${programId}/instructions/new-errors`, {
+        params: { since: sinceHours },
+      });
+      return res.data;
+    },
+    enabled: !!programId,
+    refetchInterval: 60000,
+  });
+}
+
+// ─── Health Score Hooks ───────────────────────────────────────────────────────
+
+export function useProgramHealthScore(programId: string) {
+  return useQuery({
+    queryKey: ['health', programId],
+    queryFn: async () => {
+      const res = await apiClient.get(`/programs/${programId}/health`);
+      return res.data;
+    },
+    enabled: !!programId,
+    refetchInterval: 5 * 60 * 1000,
+  });
+}
+
+export function useAllHealthScores() {
+  return useQuery({
+    queryKey: ['health', 'all'],
+    queryFn: async () => {
+      const res = await apiClient.get('/health/all');
+      return res.data as any[];
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+}
