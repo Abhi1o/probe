@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusIcon, Bell, Mail, MessageSquare, AlertCircle } from 'lucide-react';
+import { PlusIcon, Bell, Mail, MessageSquare, AlertCircle, Link } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
 
 export default function AlertsPage() {
@@ -18,7 +18,10 @@ export default function AlertsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Alerts</h1>
           <p className="text-muted-foreground">
-            Configure and manage alerts for your programs
+            Configure and manage alerts for your programs.
+            <Link href="/docs/instructions" className="ml-1 text-blue-500 hover:underline">
+              Learn how to configure alerts based on instruction metrics.
+            </Link>
           </p>
         </div>
         <Button>

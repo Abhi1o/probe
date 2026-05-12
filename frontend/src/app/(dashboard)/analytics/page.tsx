@@ -59,7 +59,10 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground">
-            Insights and metrics across all your programs
+            Insights and metrics across all your programs. 
+            <Link href="/docs/program-analytics" className="ml-1 text-blue-500 hover:underline">
+              Learn how metrics are aggregated.
+            </Link>
           </p>
         </div>
         <Select value={period} onValueChange={setPeriod}>

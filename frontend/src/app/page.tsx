@@ -68,6 +68,7 @@ const highImpactFeatures = [
     text: 'A high-fidelity feed of every instruction landing on-chain, decoded instantly.',
     tags: ['Live Feed', 'Decoded'],
     accent: 'from-[#14f195]/20 to-transparent',
+    href: '/docs/program-analytics',
   },
   {
     icon: Cable,
@@ -76,6 +77,7 @@ const highImpactFeatures = [
     text: 'Visualize how your program interacts with the broader Solana ecosystem.',
     tags: ['Graph', 'Risk'],
     accent: 'from-[#00c2ff]/20 to-transparent',
+    href: '/docs/cpi',
   },
   {
     icon: ShieldCheck,
@@ -84,6 +86,7 @@ const highImpactFeatures = [
     text: 'Detect signer bypass attempts and malicious patterns in the same block.',
     tags: ['Anomaly', 'Audit'],
     accent: 'from-[#9945ff]/20 to-transparent',
+    href: '/docs/mev',
   },
   {
     icon: Wallet,
@@ -92,6 +95,7 @@ const highImpactFeatures = [
     text: 'Classify users into Whales, Smart Money, and Bots with AI labeling.',
     tags: ['Labels', 'PnL'],
     accent: 'from-[#14f195]/20 to-transparent',
+    href: '/docs/wallets',
   },
   {
     icon: Cpu,
@@ -100,6 +104,7 @@ const highImpactFeatures = [
     text: 'Monitor CU usage and priority fees to optimize user experience.',
     tags: ['Fees', 'Efficiency'],
     accent: 'from-[#00c2ff]/20 to-transparent',
+    href: '/docs/instructions',
   },
   {
     icon: HeartPulse,
@@ -108,6 +113,7 @@ const highImpactFeatures = [
     text: 'A proprietary health score based on success rates, latency, and security flags.',
     tags: ['Live Score', 'Alerts'],
     accent: 'from-[#9945ff]/20 to-transparent',
+    href: '/docs/health',
   },
 ];
 
@@ -172,9 +178,9 @@ const pricingCards = [
 ];
 
 const docsLinks = [
-  { icon: Code2, title: 'Quickstart', text: 'Spin up frontend, backend, and monitoring fast.' },
-  { icon: Terminal, title: 'API Reference', text: 'Understand endpoints, polling, and socket events.' },
-  { icon: Globe, title: 'Architecture', text: 'See how the app, indexer, analytics, and alerts connect.' },
+  { icon: Code2, title: 'Quickstart', text: 'Spin up frontend, backend, and monitoring fast.', href: '/docs/getting-started' },
+  { icon: Terminal, title: 'API Reference', text: 'Understand endpoints, polling, and socket events.', href: '/docs/api' },
+  { icon: Globe, title: 'Architecture', text: 'See how the app, indexer, analytics, and alerts connect.', href: '/docs/monitoring' },
 ];
 
 export default function HomePage() {
@@ -250,7 +256,7 @@ export default function HomePage() {
                     Launch Dashboard
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Link>
-                  <Link href="#" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-8 py-4 text-base font-medium text-white/90 backdrop-blur-lg transition hover:bg-white/10">
+                  <Link href="/docs" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-8 py-4 text-base font-medium text-white/90 backdrop-blur-lg transition hover:bg-white/10">
                     <Code2 className="h-5 w-5 text-[#00c2ff]" />
                     Read the Docs
                   </Link>
@@ -435,7 +441,7 @@ export default function HomePage() {
 
             <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {highImpactFeatures.map((feature) => (
-                <div key={feature.title} className="group relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all hover:border-white/10 hover:bg-white/[0.04]">
+                <Link key={feature.title} href={feature.href} className="group relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all hover:border-white/10 hover:bg-white/[0.04]">
                   <div className={`absolute inset-0 bg-gradient-to-br ${feature.accent} opacity-0 transition-opacity group-hover:opacity-100`} />
                   <div className="relative z-10">
                     <div className="flex items-center justify-between">
@@ -452,7 +458,7 @@ export default function HomePage() {
                       ))}
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </section>
@@ -484,47 +490,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section id="pricing" className="mx-auto max-w-7xl px-6 py-24">
-            <div className="mb-16 text-center">
-              <div className="font-[family:var(--font-ibm-plex-mono)] text-[11px] uppercase tracking-[0.4em] text-[#14f195]">Pricing</div>
-              <h2 className="mt-4 font-[family:var(--font-space-grotesk)] text-4xl font-bold tracking-tight sm:text-5xl">
-                Simple pricing for builders and operators.
-              </h2>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-3">
-              {pricingCards.map((card) => (
-                <div
-                  key={card.tier}
-                  className={`rounded-[2.5rem] border p-8 ${
-                    card.featured
-                      ? 'border-[#14f195]/20 bg-gradient-to-b from-[#14f195]/10 to-white/[0.03]'
-                      : 'border-white/5 bg-white/[0.02]'
-                  }`}
-                >
-                  <div className="font-[family:var(--font-ibm-plex-mono)] text-[10px] uppercase tracking-[0.3em] text-white/35">
-                    {card.text}
-                  </div>
-                  <div className="mt-3 text-2xl font-bold">{card.tier}</div>
-                  <div className="mt-5 text-5xl font-extrabold tracking-tight">{card.price}</div>
-                  <div className="mt-8 space-y-3 text-white/60">
-                    {card.bullets.map((bullet) => (
-                      <div key={bullet}>{bullet}</div>
-                    ))}
-                  </div>
-                  <Link
-                    href="/register"
-                    className={`mt-8 inline-flex rounded-full px-6 py-3 text-sm font-bold ${
-                      card.featured ? 'solana-button text-[#03050c]' : 'border border-white/10 text-white/90'
-                    }`}
-                  >
-                    Get Started
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </section>
-
+          
           <section id="docs" className="mx-auto max-w-7xl px-6 py-24">
             <div className="mb-16 flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
               <div className="max-w-2xl">
@@ -533,7 +499,7 @@ export default function HomePage() {
                   Documentation that keeps up.
                 </h2>
               </div>
-              <Link href="#" className="inline-flex items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white">
+              <Link href="/docs" className="inline-flex items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white">
                 Open docs hub
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
@@ -541,13 +507,13 @@ export default function HomePage() {
 
             <div className="grid gap-6 lg:grid-cols-3">
               {docsLinks.map((doc) => (
-                <div key={doc.title} className="group rounded-[2rem] border border-white/5 bg-white/[0.02] p-8 transition hover:border-white/10 hover:bg-white/[0.04]">
+                <Link key={doc.title} href={doc.href} className="group rounded-[2rem] border border-white/5 bg-white/[0.02] p-8 transition hover:border-white/10 hover:bg-white/[0.04]">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
                     <doc.icon className="h-5 w-5 text-[#14f195]" />
                   </div>
                   <h3 className="mt-6 text-2xl font-bold">{doc.title}</h3>
                   <p className="mt-4 text-white/50">{doc.text}</p>
-                </div>
+                </Link>
               ))}
             </div>
           </section>
@@ -581,6 +547,7 @@ export default function HomePage() {
                   <span className="font-bold tracking-tight text-white/60">Probe</span>
                 </div>
                 <div className="flex gap-8 text-sm">
+                  <Link href="/docs" className="hover:text-white transition">Docs</Link>
                   <Link href="#" className="hover:text-white transition">Terms</Link>
                   <Link href="#" className="hover:text-white transition">Privacy</Link>
                   <Link href="#" className="hover:text-white transition">Status</Link>

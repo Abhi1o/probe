@@ -7,6 +7,7 @@ import {
   Activity,
   BarChart3,
   Bell,
+  BookOpen,
   FileCode,
   Home,
   Settings,

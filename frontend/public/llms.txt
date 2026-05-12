@@ -1,0 +1,38 @@
+# Probe Platform Documentation
+
+The ultimate observability and analytics platform for Solana programs.
+
+## Navigation
+- Introduction: /docs
+- Getting Started: /docs/getting-started
+- Program Analytics: /docs/program-analytics
+- Instruction Deep-Dive: /docs/instructions
+- Health Scores: /docs/health
+- CPI Analysis: /docs/cpi
+- MEV Detection: /docs/mev
+- Wallet Intelligence: /docs/wallets
+- TypeScript SDK: /docs/sdk
+- CLI Tool: /docs/cli
+- REST API Reference: /docs/api
+
+## API Summary
+Base URL: https://api.probe.sh/api/v1
+Auth: X-API-Key header required.
+
+### Core Endpoints
+- GET /programs: List registered programs.
+- POST /programs: Register a new program.
+- GET /analytics/program/:id: Fetch historical metrics.
+- GET /transactions/program/:id: Fetch recent transactions.
+
+## SDK Summary
+NPM: @probe-sh/sdk
+Usage: 
+import { ProbeClient } from '@probe-sh/sdk';
+const probe = new ProbeClient({ apiKey: '...' });
+
+## CLI Summary
+NPM: @probe-sh/cli
+Login: probe auth login
+Watch: probe transactions watch [PROGRAM_ID]
+Deploy: probe deploy --program-path [PATH]

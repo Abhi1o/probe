@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Bell, Search } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,21 @@ export function Header() {
             className="pl-10"
           />
         </div>
+
+        <nav className="flex items-center space-x-4 ml-4">
+          <Link
+            href="/docs"
+            className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+          >
+            Documentation
+          </Link>
+          <Link
+            href="/docs/api"
+            className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+          >
+            API
+          </Link>
+        </nav>
       </div>
 
       <div className="flex items-center space-x-4">

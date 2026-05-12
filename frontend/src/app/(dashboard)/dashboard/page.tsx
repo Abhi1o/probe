@@ -84,7 +84,9 @@ function SystemHealthOverview({ programs }: { programs: any[] }) {
               <div className={`text-2xl font-bold ${avgScore >= 80 ? 'text-green-600' : avgScore >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
                 {avgScore}/100
               </div>
-              <p className="text-xs text-muted-foreground">across {scores.length} programs</p>
+              <Link href="/docs/health" className="text-[10px] text-blue-500 hover:underline flex items-center gap-0.5 mt-1">
+                Learn how scores are calculated <ArrowUpRight className="h-2 w-2" />
+              </Link>
             </>
           )}
         </CardContent>

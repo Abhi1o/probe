@@ -58,7 +58,10 @@ export default function ProgramsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Programs</h1>
           <p className="text-muted-foreground">
-            Manage and monitor your Solana programs
+            Manage and monitor your Solana programs. 
+            <Link href="/docs/getting-started" className="ml-1 text-blue-500 hover:underline">
+              Learn how to register and verify ownership.
+            </Link>
           </p>
         </div>
         <Link href="/programs/new">
