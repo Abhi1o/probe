@@ -532,8 +532,8 @@ export default function HomePage() {
                   <Link href="/register" className="solana-button rounded-full px-12 py-5 text-lg font-bold text-[#03050c]">
                     Launch Now
                   </Link>
-                  <Link href="#" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-12 py-5 text-lg font-bold backdrop-blur-xl transition hover:bg-white/10">
-                    Contact Sales
+                  <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-12 py-5 text-lg font-bold backdrop-blur-xl transition hover:bg-white/10">
+                    Login
                     <ArrowUpRight className="h-5 w-5" />
                   </Link>
                 </div>
