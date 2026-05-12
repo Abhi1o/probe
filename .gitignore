@@ -54,9 +54,13 @@ yarn-error.log*
 tmp/
 
 # Docs / generated writeups
+# Only ignore the root docs directory, not app routes
+/docs/
+# Only ignore markdown files in the root or specific folders, not the whole project
+/*.md
+/*.MD
 *.md
 *.MD
-docs/
 *.doc
 *.docx
 *.pdf
